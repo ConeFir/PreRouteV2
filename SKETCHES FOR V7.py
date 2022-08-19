@@ -64,7 +64,7 @@ class ClientCalendarList:
         self.name = name
         self.calendarListIDList = []
 
-    def populate_calendarList_id_list(self, creds):
+    def populate_calendarList_id_list(self, creds: google.oauth2.credentials.Credentials):
         service = build('calendar', 'v3', credentials=creds) # this will need creds to be defined.
         page_token = None
         calendar_list = service.calendarList().list(pageToken=page_token).execute()
@@ -180,7 +180,7 @@ class ClientEventsList:
 
 class ClientEvent:
 
-    def __init__(self, name, json):
+    def __init__(self, name: str, json: dict):
 
         # Stuff guarenteed to be in the json.
 
@@ -352,6 +352,7 @@ eventListList = []
 service_creds_pair = get_authentification_creds()
 service = service_creds_pair[0]
 creds = service_creds_pair[1]
+print("creds are of", type(creds))
 gather_events()
 set_background_booleans_for_events_and_eventsList(eventListList)
 for eventList in eventListList:
