@@ -1,0 +1,319 @@
+In this document, I am going to lay out the outline of the approach I am taking for this chunk of PreRoute.
+
+SOME TERMINOLOGY:
+
+TRANSIT_EVENT: This is a google calendars event, inserted by PreRoute, such that:
+	1.) It has a START TIME and END TIME. TBD how these are TBD.
+	2.) It has a DESCRIPTION: This description specifies directions for using public transit.
+	3.) It has a SUMMARY (or title) which is "Transit by PreRoute."
+
+TRANSIT_EVENT_FAILURE: This is also a google calenders event.
+	1.) It too has a START TIME and an END TIME. TBD etc.
+	2.) It has a DESCRIPTION: "PreRoute could not find an appropriate public transit option."
+	3.) It has a SUMMARY (or title): No Trip Available.
+
+PREROUTED:
+
+We say a set of consecutive events is PreRouted iff between each consecutive member, we have inserted a transit_event, or, failing that, have inserted a transit_event_failure event, which notifies the user that no public transit is available.
+
+STEP 1: Determine what the data we'll be operating with is to be.
+
+BASIC IDEA: The user should be given the events in the calender that they will be interacting with. This will require that the user specify some block of time that they want to have PreRouted.
+
+EXAMPLE: "PreRoute This Week."
+
+SKETCH:
+
+When given this command, the program GETS the events of the coming week.
+Then, it figures out a consecutive ordering of them, probably by start and end time.
+Then, it QUERIES maps via DIRECTIONS, looking for directions between each consecutive pair of events.
+Then, it INSERTS a transit_event (or transit_event_failure) covering the period in which transit is to be accomplished.
+
+QUESTIONS THIS PLAN DOESN'T SETTLE
+
+1.) What to do with overlapping events?
+    FOR NOW: Return Error: Overlapping Events.
+2.) What to do with locationless events?
+    FOR NOW: Return Error: Events in time frame lack locations.
+3.) Does it favor transit immediately following the end of the first event, or immediately preceeding the end of the second event?
+	(That is, how do you want to get there? Leave right away or get there just in time?)
+	FOR NOW: Assume early bird: You want transit immediately after the current event.
+
+
+NEXT STEPS:
+    Now we have three things which we will need to do.
+    1.) Figure out how to get the events in the primary calender over a certain interval.
+    2.) Figure out how to get the locations and times of events in that time interval.
+    3.) Figure out what strategy we want to follow for handling the location and time data. Store it? Use directly?
+    4.) Figure out how to call directions on the basis of that data.
+    5.) Figure out how to write events encoding that data.
+
+STRATEGY FOR DEALING WITH THESE:
+    I think the best place to start is actually calling directions.
+    The reason is that this will give us a better idea about what we need to be getting from primary calender.
+    In this case, consider the code we already have from GoogleMapsAPIGetter.
+
+now = datetime.now()
+directions_result = gmaps.directions("Roseville Library",
+                                     "Cahoots Coffee Bar",
+                                     mode="transit",
+                                     departure_time=now)
+
+So, I think that the strategy must be as follows:
+Build a function such that it takes as inputs a start location and an end location, and a departure time.
+The departure time is 10 minutes after the end of the given event.
+
+So, as a sketch:
+
+def get_directions(start_location, end_location, departure_time):
+
+This just looks like gmaps.directions. But we'll need something a bit more custom-made.
+Specifically, we'll need a function that goes from two events' eventdata, which should contain what we need.
+
+So, something more like:
+
+def connect_events(origin_event, destination_event):
+
+    And what this does is:
+    (1) Extract the start_location: This will be the location of origin_event.
+    (2) Extract the end_location: This is the location of the destination_event.
+    (3) Define the departure_time: This is ten minutes after the end of origin_event.
+
+So, what we'll need is the ability to extract location of origin, location of destination, and the end_time of origin.
+
+We'll also need to know if a transit route is even possible.
+    So, we'll need to know the errors when no such destination can be found.
+
+Let's figure out how to extact the location.
+Here's the resource representation for calenders:
+https://developers.google.com/calendar/api/v3/reference/calendars#resource
+
+And for events:
+https://developers.google.com/calendar/api/v3/reference/events#resource
+
+And here's what a calender looks like:
+
+{
+  "kind": "calendar#calendar",
+  "etag": etag,
+  "id": string,
+  "summary": string,
+  "description": string,
+  "location": string,
+  "timeZone": string,
+  "conferenceProperties": {
+    "allowedConferenceSolutionTypes": [
+      string
+    ]
+  }
+}
+
+And here's what an event looks like:
+
+{
+  "kind": "calendar#event",
+  "etag": etag,
+  "id": string,
+  "status": string,
+  "htmlLink": string,
+  "created": datetime,
+  "updated": datetime,
+  "summary": string,
+  "description": string,
+  "location": string,
+  "colorId": string,
+  "creator": {
+    "id": string,
+    "email": string,
+    "displayName": string,
+    "self": boolean
+  },
+  "organizer": {
+    "id": string,
+    "email": string,
+    "displayName": string,
+    "self": boolean
+  },
+  "start": {
+    "date": date,
+    "dateTime": datetime,
+    "timeZone": string
+  },
+  "end": {
+    "date": date,
+    "dateTime": datetime,
+    "timeZone": string
+  },
+  "endTimeUnspecified": boolean,
+  "recurrence": [
+    string
+  ],
+  "recurringEventId": string,
+  "originalStartTime": {
+    "date": date,
+    "dateTime": datetime,
+    "timeZone": string
+  },
+  "transparency": string,
+  "visibility": string,
+  "iCalUID": string,
+  "sequence": integer,
+  "attendees": [
+    {
+      "id": string,
+      "email": string,
+      "displayName": string,
+      "organizer": boolean,
+      "self": boolean,
+      "resource": boolean,
+      "optional": boolean,
+      "responseStatus": string,
+      "comment": string,
+      "additionalGuests": integer
+    }
+  ],
+  "attendeesOmitted": boolean,
+  "extendedProperties": {
+    "private": {
+      (key): string
+    },
+    "shared": {
+      (key): string
+    }
+  },
+  "hangoutLink": string,
+  "conferenceData": {
+    "createRequest": {
+      "requestId": string,
+      "conferenceSolutionKey": {
+        "type": string
+      },
+      "status": {
+        "statusCode": string
+      }
+    },
+    "entryPoints": [
+      {
+        "entryPointType": string,
+        "uri": string,
+        "label": string,
+        "pin": string,
+        "accessCode": string,
+        "meetingCode": string,
+        "passcode": string,
+        "password": string
+      }
+    ],
+    "conferenceSolution": {
+      "key": {
+        "type": string
+      },
+      "name": string,
+      "iconUri": string
+    },
+    "conferenceId": string,
+    "signature": string,
+    "notes": string,
+  },
+  "gadget": {
+    "type": string,
+    "title": string,
+    "link": string,
+    "iconLink": string,
+    "width": integer,
+    "height": integer,
+    "display": string,
+    "preferences": {
+      (key): string
+    }
+  },
+  "anyoneCanAddSelf": boolean,
+  "guestsCanInviteOthers": boolean,
+  "guestsCanModify": boolean,
+  "guestsCanSeeOtherGuests": boolean,
+  "privateCopy": boolean,
+  "locked": boolean,
+  "reminders": {
+    "useDefault": boolean,
+    "overrides": [
+      {
+        "method": string,
+        "minutes": integer
+      }
+    ]
+  },
+  "source": {
+    "url": string,
+    "title": string
+  },
+  "attachments": [
+    {
+      "fileUrl": string,
+      "title": string,
+      "mimeType": string,
+      "iconLink": string,
+      "fileId": string
+    }
+  ],
+  "eventType": string
+}
+
+Okay, so that's a lot. We also want to note, from what we've got from the PreRoute Main File, how listing events works.
+
+Specifically, GETTING a calender doesn't get us the events in the list. Rather, for that, we use events().list. E.g.:
+
+events_result = service.events().list(calendarId='primary', timeMin=now, singleEvents=True, orderBy='startTime').execute()
+
+Pretty obviously, we'll want to figure out how to alter timeMin and timeMax, so as to generate the correct values.
+
+The list resource is here: https://developers.google.com/calendar/api/v3/reference/events/list
+
+{
+  "kind": "calendar#events",
+  "etag": etag,
+  "summary": string,
+  "description": string,
+  "updated": datetime,
+  "timeZone": string,
+  "accessRole": string,
+  "defaultReminders": [
+    {
+      "method": string,
+      "minutes": integer
+    }
+  ],
+  "nextPageToken": string,
+  "nextSyncToken": string,
+  "items": [
+    events Resource
+  ]
+}
+
+The crucial thing to get from this dictionary will be what is contained in items, which are events.
+My suspicion is that we'll want to sort through "items," and then stash events in terms of the order they have.
+
+The crucial question is: Is List ordered by start-times? If so, we can just use that.
+
+A good first step for doing this would be figure out if we can get stuff without suffering overmuch.
+
+AH!
+orderBy	string	The order of the events returned in the result. Optional. The default is an unspecified, stable order.
+
+Acceptable values are:
+"startTime": Order by the start date/time (ascending).
+This is only available when querying single events (i.e. the parameter singleEvents is True)
+"updated": Order by last modification time (ascending).
+
+Okay, so we'll want to request the list of events, and then say that the orderBy parameter is startTime.
+
+events_week_result = service.events().list(calendarId='primary', timeMin=now, singleEvents=True, orderBy='startTime').execute()
+
+
+AND it looks like that's already included in what we've written.
+
+Can we also add in the stuff for timeMin and timeMax?
+
+For timeMin I'm pretty sure we can use now.
+Question: Can we ask for like, a week out, directly?
+
+So then we're running through events_week_result.

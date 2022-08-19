@@ -1,0 +1,21 @@
+As some point, we may want to embed a google maps frame into our application. This is free. Here is the website.
+
+NOTE that this just basically returns a google maps page. It's NOT a static image.
+
+https://developers.google.com/maps/documentation/embed/get-started?_gl=1*bik8ht*_ga*MTE0NjMzMDMyMi4xNjUyODk4MDMx*_ga_NRWSTWS78N*MTY1Mjg5ODAzMC4xLjEuMTY1Mjg5ODA1OS4w
+
+If we want to just get a static image, we can use this:
+
+https://developers.google.com/maps/documentation/maps-static/usage-and-billing
+
+Apparently the location process we'll want is called GEOCODING, which turns places into GPS data (I think?)
+
+https://developers.google.com/maps/documentation/geocoding/?_gl=1*18m31rx*_ga*MTE0NjMzMDMyMi4xNjUyODk4MDMx*_ga_NRWSTWS78N*MTY1Mjg5ODAzMC4xLjEuMTY1Mjg5ODM1Ny4w
+
+Here is the client library for Maps API.
+
+https://developers.google.com/maps/web-services/client-library
+
+OH and here's the API we'll use to make route requests. It's called distance matrix.
+
+https://developers.google.com/maps/documentation/distance-matrix/?_gl=1*2301d2*_ga*MTE0NjMzMDMyMi4xNjUyODk4MDMx*_ga_NRWSTWS78N*MTY1Mjg5ODAzMC4xLjEuMTY1Mjg5ODY4NC4w

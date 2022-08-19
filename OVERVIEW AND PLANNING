@@ -1,0 +1,35 @@
+Welcome to PreRoute, John's first attempt to build a cross-platform API engagement tool.
+
+This document lays out my planning for this tool, in broad brushstrokes.
+
+The functionality of this app is as follows:
+(1) INTERACT with Google Calender API to GET the events of the primary calender.
+
+(2) For every event in the primary calender, be able to extract:
+    (a) Name
+    (b) ID
+    (c) Start time
+    (d) End time
+    (e) Location
+    
+(2) INTERACT with Google Maps API to GET bus routes, according to the following criteria:
+
+    For each event in the primary calender, look for a bus route from the location of
+    that event to the location of the subsequent event, with the departure time of that route
+    being the next avaiable departure time *after* the first event's end time, and its arrival
+    time falling before the second event's start time.
+    
+    IF there is no such route, return "no such route exists."
+    
+    IF there is a route, then create a new event in the primary calender, with the event's title
+    being "Bus from "FIRSTEVENTNAME" to "SECONDEVENTNAME," via "ROUTENAME."
+    
+    IDEALLY: This event includes a link to the bus route in question.
+    
+(3) Build a GUI with tkinter for this application. The GUI should have the following functionality:
+    (a) A button that loads and displays your events.
+    (b) A button that says 'PreRoute my calender," and
+        (c) Returns an image or images of the bus route, which you should be able to click through.
+        (d) Returns a listing of your new events.
+        OR
+        (e) An error message specifying what went wrong.

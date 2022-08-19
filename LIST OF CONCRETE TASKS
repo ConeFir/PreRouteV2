@@ -1,0 +1,41 @@
+THINGS WE'LL NEED TO DO, CONCRETELY:
+
+AIMS:
+    1. Show possibility of this app.
+    2. Figure out technical requirements
+    3. Execute technical requirements.
+
+TASKS FOR PROVING THE POSSIBILITY OF THIS APPLICATION:
+    1.  Make sure we can use multiple APIs simultaneously within an app.
+    2.  Ensure that the data used for event locations can also be used for
+        finding data on Google Maps.
+
+TASKS FOR FIGURING OUT TECHNICAL REQUIREMENTS:
+    1. Find out:
+        (a) whether the code required for checking bus routes is within my abilities.
+        (b) whether locations in calenders can be integrated with locations in maps.
+
+LIST OF QUESTIONS:
+    1. Does maps have python support?
+        Appears the answer is yes. Look in useful resources.
+
+THINGS I DID:
+    INSTALLING LIBRARIES
+    1. Ran the pip for calender api:
+    pip install --upgrade google-api-python-client google-auth-httplib2 google-auth-oauthlib
+    2. Checked to see if maps requires a distinct pip.
+    Answer: It does! Here it is:
+    $ pip install -U googlemaps
+    This, and some important details, covered at:
+    https://github.com/googlemaps/google-maps-services-python
+    And, it looks like directions and geocoding are inbuilt.
+    3. Located the quickstart for calender api:
+    https://developers.google.com/calendar/api/quickstart/python
+    4. Locate the quickstart for maps api
+    Appears it doesn't exist, but I suspect that the github source gives us what we need.
+    GETTING AUTHENTICATIONS
+    API ID for 3 Maps Applications: AIzaSyD_XLgfF2vGYTxVThNrmLmwJcnuMl2pX-I
+    OAuth ID = 591382261109-iuu8icip8se1id53i2cktdbis1s642jd.apps.googleusercontent.com
+    OAutho Secret = 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
+    I added this key to the PreRoute Main File.
+    Recommendation: "Use this key in your application by passing it with the key=API_KEY parameter."
