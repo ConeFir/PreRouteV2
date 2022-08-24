@@ -157,6 +157,9 @@ class ClientEventsList:
                         print("I've said thisis the last event of the day.")
                         self.classified_event_jsons[index].last_event_of_day = 1
 
+# At this juncture, has_successor is redundant. All you need to ask is whether it is the last event of the day.
+
+
     def debug_print(self):
         print("Self.json =", self.json)
         print("Self.name =", self.name)
@@ -199,11 +202,21 @@ class ClientEvent:
 
         self.first_event_of_day: int = 2
         self.last_event_of_day: int = 2
-        self.has_successor: int = 2
 
         #self.startTimeISO = dateutil.parser.isoparse(self.startTime["dateTime"])
         #self.endTimeISO = dateutil.parser.isoparse(self.endTime["dateTime"])
 
+        self.scheduling_booleans_set = 0
+
+        #NOT SO SURE ABOUT THESE:
+        # For now, I'm attaching the directions to the events.
+
+        self.json_directions_to_this_event = 0
+
+        # This way, if you get a type error, then you'll know that this is at fault.
+        # Now we stash a bunch of useful data
+
+        self.step_list = []
 
     def set_background_booleans(self):
         try:
@@ -238,6 +251,10 @@ class ClientEvent:
             self.startISO = dateutil.parser.isoparse(self.start_dateTime)
             self.endISO = dateutil.parser.isoparse(self.end_dateTime)
 
+    def populate_step_list(self):
+
+        for leg in self.json_directions_to_this_event[0]['legs'][0]['steps']:
+            self.step_list.append(leg)
 
     def debug_dateTime(self):
         print("Json is", self.json)
@@ -263,6 +280,10 @@ class ClientEvent:
 # Step 1: Build a function to authenticate.
 
 # Pretty straightforward, not gonna think too much about it.
+
+# IMPORTANT NEW STEP: I'm building a class to handle directions results.
+
+
 
 def get_authentification_creds():
 
@@ -323,15 +344,48 @@ def set_background_booleans_for_events_and_eventsList(eventListList: list):
         for event in eventList.classified_event_jsons:
            event.debug_dateTime() #a debug function which tracks whether the classes attributes are set correctly.
 
-def pre_route_eventsList(ClientEventsList: list):
+def preroute_client_events_List(ClientEventsList: list):
     if ClientEventsList.all_events_preroutable == 0:
         print("This EventsList is not preroutable.")
     else:
-        print("This EventsList is preroutable.")
-        # At this juncture, it may be prudent to create two more booleans.
-        # One for "first_event_of_day"
-        # One for "last_event_of_day"
-        # Another for "has_successor_event"
+        print("This EventsList is preroutable. I am now PreRouting it.")
+        for index in range(len(ClientEventsList.classified_event_jsons)):
+            this_event = ClientEventsList.classified_event_jsons[index]
+            if this_event == ClientEventsList.classified_event_jsons[0]:
+                continue
+            else:
+                if this_event.first_event_of_day == 1:
+                    continue
+                else:
+                    prior_event = ClientEventsList.classified_event_jsons[index-1]
+                    # GET DIRECTIONS
+                    try:
+                        #print("I am now attempting to get directions between", this_event.name, "and", prior_event.name)
+                        directions_result = gmaps.directions(destination=str(this_event.location), origin=str(prior_event.location),
+                                                             mode="transit", departure_time=prior_event.endISO)
+                        this_event.json_directions_to_this_event = directions_result
+                        #print("I tried to append the directions result to", this_event.name)
+                        #print("Here it is:")
+                        #print(this_event.json_directions_to_this_event)
+                    except:
+                        print("Error appending directions_result to this_event.")
+                    try:
+                        this_event.populate_step_list()
+                    except:
+                        print("Problem with populating step_list for", this_event.name)
+                    #leg_end_date = this_event.startISO.date()
+                    leg_end_dateTime = str(datetime.fromtimestamp(this_event.json_directions_to_this_event[0]['legs'][0]['arrival_time']['value']).isoformat())
+                    leg_end_timeZone = this_event.json_directions_to_this_event[0]['legs'][0]['arrival_time']['time_zone']
+                    #leg_start_date = this_event.startISO.date()
+                    leg_start_dateTime = str(datetime.fromtimestamp(this_event.json_directions_to_this_event[0]['legs'][0]['departure_time']['value']).isoformat())
+                    leg_start_timeZone = this_event.json_directions_to_this_event[0]['legs'][0]['arrival_time'][
+                        'time_zone']
+                    event_resource = {'end': {"dateTime": leg_end_dateTime,
+                                              "timeZone": leg_end_timeZone},
+                                      'start': {"dateTime": leg_start_dateTime,
+                                                "timeZone": leg_start_timeZone},
+                                      'summary': "test event"}
+                    service.events().insert(calendarId=ClientEventsList.calendar_id, body=event_resource).execute()
 
 
 
@@ -345,7 +399,7 @@ gather_events()
 set_background_booleans_for_events_and_eventsList(eventListList)
 for eventList in eventListList:
     eventList.set_scheduling_booleans()
-
+    preroute_client_events_List(eventList)
 
 
 
