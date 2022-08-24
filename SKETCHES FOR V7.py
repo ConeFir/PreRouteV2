@@ -380,6 +380,7 @@ def preroute_client_events_List(ClientEventsList: list):
                     leg_start_dateTime = str(datetime.fromtimestamp(this_event.json_directions_to_this_event[0]['legs'][0]['departure_time']['value']).isoformat())
                     leg_start_timeZone = this_event.json_directions_to_this_event[0]['legs'][0]['arrival_time'][
                         'time_zone']
+                    leg_summary = "Transit via PreRoute"
                     event_resource = {'end': {"dateTime": leg_end_dateTime,
                                               "timeZone": leg_end_timeZone},
                                       'start': {"dateTime": leg_start_dateTime,
