@@ -3,35 +3,19 @@
 # The current dateTime approach is strictly about startTime, but we really need to have it handle overlap and
 # utilize endTime too.
 
+# Tasks for today 8/19/2022
+# (1) [] We figure out what's wrong with set_scheduling_booleans
+#   (a) [] We diagnose the problem by running the program and seeing if its giving correct answers to any of them.
+#   (b) [] We do some experiments with dateTime objects, and figure out if they handle less and equal as we think.
+#       (i) [] We do this by first copying some dateTime objects, or strings that can be converted.
+#       (ii) [] From there we copy and paste set_scheduling booleans.
+#   (c) [] We rewrite set_scheduling booleans and test it.
+# (2) [] We get the google maps integration up and running.
+#   (a) [] Step 1 here is to open the old version and see if it does what we want.
+#   (b) [] Step 2 is to copy and paste it and see if we can't get it working. (And preferably build function for it.
+# FOR TOMORROW:
+# (1) [] We figure out how to get our stuff on a web service.
 
-# AIMS FOR THIS DRAFT
-# We are aiming to download the entirety of the user's data from Calendar.
-# MEANS:
-# We will do this via several steps, with the checklist at left.
-
-
-# [x] STEP 0.0: We define the following *classes*: ClientCalendarList, ClientEventsList, ClientEvent.
-    # [x] STEP 0.1: All classes have (at least) two init methods: name and json. Name, in many cases, is just summary.
-    # [x] STEP 0.2: ClientCalendarList has a method to create a list of id numbers for calendars.
-    # [x] STEP 0.3: ClientEventsList has a method to create a list of id numbers for events, EventsListIDList
-    # [x] STEP 0.4: ClientEvents has (init) methods for location, start, end, id, summary
-    # ENDGAME: We wind up with the ability to construct a list of all events in a given calendar.
-# [ ] STEP 1.0: We build a function from the list of ids from EventsListIDList, called *GatherEvents*
-    # [x] STEP 1.1: We start a for loop to work our way through ClientCalendarListIdList
-    # [x] STEP 1.2: With each element we ask google for the eventsList corresponding to that id number.
-    # [x] STEP 1.3: For each json that returns, we make that json an instance of a ClientEventsList, summmary as name.
-    # [x] STEP 1.4: We then store the resulting ClientEventsList in a list, EventsListSet
-# [ ] STEP 2.0: Using that method of the calendar, we call id numbers to get the eventsLists for those calendars.
-    # [ ] STEP 2.1: ...Specifically, we make a method which loops through the id method of calendarList's items.
-    # [ ] STEP 2.2: ...then this method calls google with that id number...
-    # [ ] STEP 2.3: ...and makes the result of that call, an eventsList json, into an eventsList object.
-# [ ] STEP 3.0: We define some utility functions for that dictionary, including:
-# [ ] STEP 3.1: ...a function which tells us if there's a next event.
-# [ ] STEP 3.2: ...a function that tells us if its the first event of the day.
-# [ ] STEP 3.3: ...a function that tells us if its the last event of the day.
-# (An open question here: Ought we to put those functions as methods of the ClientX classes? Or make MOTHADICT a class?
-# ...Or just make it free-floating?)
-# STEP 7: A function that
 
 
 from __future__ import print_function
@@ -64,7 +48,7 @@ class ClientCalendarList:
         self.name = name
         self.calendarListIDList = []
 
-    def populate_calendarList_id_list(self, creds: google.oauth2.credentials.Credentials):
+    def populate_calendarList_id_list(self, creds):
         service = build('calendar', 'v3', credentials=creds) # this will need creds to be defined.
         page_token = None
         calendar_list = service.calendarList().list(pageToken=page_token).execute()
@@ -90,13 +74,13 @@ class ClientCalendarList:
 class ClientEventsList:
 
     def __init__(self, name: str, json: dict, calendar_id: str):
-        self.name = name
-        self.json = json
-        self.calendar_id = calendar_id
-        self.eventListIDList = []
-        self.client_events_json_dump = []
-        self.classified_event_jsons = []
-        self.all_events_preroutable = 0
+        self.name: str = name
+        self.json: dict = json
+        self.calendar_id: str = calendar_id
+        self.eventListIDList: list = []
+        self.client_events_json_dump: dict = {}
+        self.classified_event_jsons: list = []
+        self.all_events_preroutable: int = 0
 
 # STEP 1: We populate the list of events for a given calendar.
 
@@ -113,9 +97,9 @@ class ClientEventsList:
         for calender_id_event_id_pairs in self.eventListIDList:
             page_token = None
             while True:
-                now = datetime.utcnow().isoformat() + 'Z'  # 'Z' indicates UTC time
-                given_event = service.events().get(calendarId=calender_id_event_id_pairs[0], eventId=calender_id_event_id_pairs[1]).execute()
-                given_event_name = str(given_event['summary'])
+                now: datetime = datetime.utcnow().isoformat() + 'Z'  # 'Z' indicates UTC time
+                given_event: dict = service.events().get(calendarId=calender_id_event_id_pairs[0], eventId=calender_id_event_id_pairs[1]).execute()
+                given_event_name: str = str(given_event['summary'])
                 arbitrary_value = ClientEvent(given_event_name, given_event)
                 arbitrary_value.debug_dateTime() # for debugging
                 self.classified_event_jsons.append(arbitrary_value)
@@ -134,40 +118,44 @@ class ClientEventsList:
             self.all_events_preroutable = 1
 
     def set_scheduling_booleans(self):
-        # NOTE: This uses startime to guage whether an event occurs on the same day.
-        # It is also returning bad values
+        self.check_and_set_if_preroutable()
         if self.all_events_preroutable == 0:
-            print("Error: This calendar is not preroutable.")
-        else:
-            for event in self.classified_event_jsons:
-                if event.first_event_of_day == 2:
-                    event.first_event_of_day = 1
-                    for other_event in self.classified_event_jsons:
-                        if event == other_event:
-                            continue
-                        if event != other_event:
-                                if event.startISO > other_event.startISO and event.startISO.date == other_event.startISO.date:
-                                    event.first_event_of_day = 0
-                if event.last_event_of_day == 2:
-                    event.last_event_of_day = 1
-                    for other_event in self.classified_event_jsons:
-                        if event == other_event:
-                            continue
-                        if event != other_event:
-                            for other_event in self.classified_event_jsons:
-                                if event.startISO < other_event.startISO and event.startISO.date == other_event.startISO.date:
-                                    event.first_event_of_day = 0
-                if event.has_successor == 2:
-                    event.has_successor = 1
-                    for other_event in self.classified_event_jsons:
-                        if event.last_event_of_day == 1 and event != other_event:
-                            event.has_successor = 0
-            # debug stuff below:
-                print (event.name, "has the successor value ", event.has_successor)
-                print (event.name, "has the first_event value ", event.first_event_of_day)
-                print (event.name, "has the last_event value", event.last_event_of_day)
-
-
+            print(self.name, "is not preroutable, so I'm stopping now.")
+        if self.all_events_preroutable ==1:
+            print(self.name, "is preroutable, so now I'm going to set scheduling booleans")
+            for index in range(len(self.classified_event_jsons)):
+                print("Entering main loop, now considering", self.classified_event_jsons[index].name)
+                if self.classified_event_jsons[0] == self.classified_event_jsons[index]:
+                    print(self.classified_event_jsons[index].name,
+                          "is the first event on the classified events jsons for this eventsList.")
+                    self.classified_event_jsons[index].first_event_of_day = 1
+                    print("Accordingly, ", self.classified_event_jsons[index].name, "has been marked first event of the day.")
+                    continue
+                if self.classified_event_jsons[index] != self.classified_event_jsons[0]:
+                    print(self.classified_event_jsons[index].name,
+                          "is NOT the first event on the classified events jsons for this eventsList.")
+                    if self.classified_event_jsons[index-1].startISO.date() == self.classified_event_jsons[index].startISO.date():
+                        print(self.classified_event_jsons[index].name, "is on the same date as its precedessor, ",
+                                    self.classified_event_jsons[index-1].name)
+                        if self.classified_event_jsons[index - 1].first_event_of_day == 1:
+                            print(self.classified_event_jsons[index-1].name, "is the first event of the day...")
+                            self.classified_event_jsons[index].first_event_of_day = 0
+                            print("So I'm making", self.classified_event_jsons[index].name, "as a non-first event.")
+                        else:
+                            print(self.classified_event_jsons[index-1].name, "is not the first event of day.")
+                            self.classified_event_jsons[index].first_event_of_day = 0
+                            print("So I'm saying", self.classified_event_jsons[index].name, "is not a first event either")
+                    if self.classified_event_jsons[index - 1].startISO.date() != self.classified_event_jsons[index].startISO.date():
+                        print(self.classified_event_jsons[index].name, "is NOT on the same date as its precedessor, ",
+                                    self.classified_event_jsons[index-1].name)
+                        self.classified_event_jsons[index].first_event_of_day = 1
+                        print(self.classified_event_jsons[index].name, "is now marked as the first event of the day.")
+                        self.classified_event_jsons[index-1].last_event_of_day = 0
+                        print(self.classified_event_jsons[index-1].name, "is now marked as the last event of the day.")
+                    if index + 1 == len(self.classified_event_jsons):
+                        print("The index is", index, "so I evaluated ", index +1, "and it is equal to", len(self.classified_event_jsons))
+                        print("I've said thisis the last event of the day.")
+                        self.classified_event_jsons[index].last_event_of_day = 1
 
     def debug_print(self):
         print("Self.json =", self.json)
@@ -184,34 +172,34 @@ class ClientEvent:
 
         # Stuff guarenteed to be in the json.
 
-        self.name = name
-        self.json = json
-        self.id = json["id"]
-        self.etag = json["etag"]
-        self.summary = json["summary"]
+        self.name: str = name
+        self.json: dict = json
+        self.id: str = json["id"]
+        self.etag: str = json["etag"]
+        self.summary: str = json["summary"]
 
         # Tests for if values are defined
 
-        self.End_dateTime_defined = 2 # This becomes either 1 or 2 for yes and no depending on extract end dateTime
-        self.Start_dateTime_defined = 2  # This becomes either 1 or 2 for yes and no depending on extract start dateTime
-        self.dateTime_defined = 0
-        self.location_defined = 0
-        self.is_preroutable = 0
+        self.End_dateTime_defined: int = 2 # This becomes either 1 or 2 for yes and no depending on extract end dateTime
+        self.Start_dateTime_defined: int = 2  # This becomes either 1 or 2 for yes and no depending on extract start dateTime
+        self.dateTime_defined: int = 0
+        self.location_defined: int = 0
+        self.is_preroutable: int = 0
 
         # These values are not zero only when they are defined in self.json.
 
-        self.end_dateTime = 0
-        self.start_dateTime = 0
-        self.startISO = 0
-        self.endISO = 0
-        self.location = 0
+        self.end_dateTime: str = 0
+        self.start_dateTime: str = 0
+        self.startISO: datetime = 0
+        self.endISO: datetime = 0
+        self.location: str = 0
 
         # These have to be set via the method set_scheduling_booleans of the eventlist.
         # They are set to 2 until that method gets called.
 
-        self.first_event_of_day = 2
-        self.last_event_of_day = 2
-        self.has_successor = 2
+        self.first_event_of_day: int = 2
+        self.last_event_of_day: int = 2
+        self.has_successor: int = 2
 
         #self.startTimeISO = dateutil.parser.isoparse(self.startTime["dateTime"])
         #self.endTimeISO = dateutil.parser.isoparse(self.endTime["dateTime"])
@@ -323,7 +311,7 @@ def gather_events():
                 break
 
 # A DEBUG FUNCTION:
-def set_background_booleans_for_events_and_eventsList(eventListList):
+def set_background_booleans_for_events_and_eventsList(eventListList: list):
     for eventList in eventListList:
         print("This is the eventList for the calendar", eventList.name) # debug
         for event in eventList.classified_event_jsons:
@@ -335,7 +323,7 @@ def set_background_booleans_for_events_and_eventsList(eventListList):
         for event in eventList.classified_event_jsons:
            event.debug_dateTime() #a debug function which tracks whether the classes attributes are set correctly.
 
-def pre_route_eventsList(ClientEventsList):
+def pre_route_eventsList(ClientEventsList: list):
     if ClientEventsList.all_events_preroutable == 0:
         print("This EventsList is not preroutable.")
     else:
